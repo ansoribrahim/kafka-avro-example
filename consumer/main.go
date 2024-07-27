@@ -4,7 +4,10 @@ import (
 	"context"
 	"log"
 
+	"github.com/hamba/avro/v2"
 	"github.com/segmentio/kafka-go"
+
+	avroschema "kafka-example/avroschema"
 )
 
 func main() {
@@ -19,11 +22,23 @@ func main() {
 	})
 
 	for {
-		m, err := r.ReadMessage(context.Background())
+		data, err := r.ReadMessage(context.Background())
 		if err != nil {
 			break
 		}
-		log.Printf("message at offset %d: %s = %s\n", m.Offset, string(m.Key), string(m.Value))
+
+		schema, err := avroschema.GetSchema()
+		if err != nil {
+			return
+		}
+
+		out := avroschema.User{}
+		err = avro.Unmarshal(*schema, data.Value, &out)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		log.Printf("message at offset %d: %s = %s\n", data.Offset, string(data.Key), out)
 	}
 
 	if err := r.Close(); err != nil {

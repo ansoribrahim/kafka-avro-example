@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/segmentio/kafka-go"
+
+	avroschema "kafka-example/avroschema"
 )
 
 func main() {
@@ -33,28 +35,33 @@ func main() {
 		}
 	}()
 
-	// Create a new scanner to read from standard input
 	scanner := bufio.NewScanner(os.Stdin)
 	fmt.Println("Enter messages to send to Kafka (type 'exit' to quit):")
 
 	for {
-		// Read user input
 		if !scanner.Scan() {
 			break
 		}
 		text := scanner.Text()
 
-		// Exit the loop if the user types "exit"
 		if text == "exit" {
 			break
 		}
 
-		// Reset the write deadline before each write
 		conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
 
-		// Write the user input as a message to the Kafka topic
-		_, err := conn.WriteMessages(
-			kafka.Message{Key: []byte("user-message"), Value: []byte(text)},
+		req := avroschema.User{
+			Name: text,
+			Age:  30,
+		}
+
+		bytes, err := req.GetAvroBytes()
+		if err != nil {
+			return
+		}
+
+		_, err = conn.WriteMessages(
+			kafka.Message{Key: []byte("user-message"), Value: bytes},
 		)
 		if err != nil {
 			log.Printf("failed to write message: %v", err)
